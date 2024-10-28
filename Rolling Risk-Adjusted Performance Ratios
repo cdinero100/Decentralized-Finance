@@ -1,0 +1,46 @@
+// This work is licensed under a Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0) https://creativecommons.org/licenses/by-nc-sa/4.0/
+// © EliCobra
+
+//@version=5
+indicator("Rolling Risk-Adjusted Performance Ratios", "[Ʌ] - RAPR", false, timeframe = "", timeframe_gaps = true)
+
+type ratios
+    float srt = na
+    float srp = na
+    float omg = na
+
+method calc(float src, simple int len) =>
+    array<float> a_prtr = array.new<float>()
+    array<float> a_nrtr = array.new<float>()
+    array<float> a_rtr  = array.new<float>()
+    float        rtr    = src / src[1] - 1
+
+    for i = 0 to len - 1
+        if rtr[i] < 0.
+            a_nrtr.push(rtr[i])
+        else    
+            a_prtr.push(rtr[i])
+
+        a_rtr     .push(rtr[i])
+
+    ratios rapr = ratios.new(
+         math.round(a_rtr .avg() / a_nrtr.stdev() * math.sqrt(len), 2),
+         math.round(a_rtr .avg() / a_rtr .stdev() * math.sqrt(len), 2),
+         math.round(a_prtr.sum() / a_nrtr.sum  () *          (-1 ), 2))
+
+    rapr
+    
+var string gc = "Calculation", var string gp = "Display"
+src   = input.source(close, "Source"   , group = gc)
+len   = input.int   (30   , "Period"   , group = gc)
+blsrp = input.bool  (true , "Sharpe"   , group = gp)
+blstn = input.bool  (true , "Sortino"  , group = gp)
+blomg = input.bool  (true , "Omega"    , group = gp)
+blmid = input.bool  (true , "Zero Line", group = gp)
+
+ratios rapr = src.calc(len)
+
+hline(blmid ? 0        : na, "Zero Line"    , chart.fg_color, hline.style_solid)
+plot (blsrp ? rapr.srp : na, "Sharpe Ratio" , #529cca                        )
+plot (blstn ? rapr.srt : na, "Sortino Ratio", #bb6cbb                        )
+plot (blomg ? rapr.omg : na, "Omega Ratio"  , #4fa34f                        )
